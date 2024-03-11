@@ -1,0 +1,60 @@
+{
+    "name": "Create Botok View",
+    "true": {
+        "push": {
+            "branches": [
+                "master"
+            ],
+            "paths": [
+                "**create_botok_view.yml"
+            ]
+        },
+        "workflow_dispatch": null
+    },
+    "jobs": {
+        "create": {
+            "if": "( github.event.commits[0].message == 'create botok view' )",
+            "runs-on": "ubuntu-latest",
+            "steps": [
+                {
+                    "uses": "actions/checkout@v2"
+                },
+                {
+                    "run": "git pull"
+                },
+                {
+                    "name": "Set up Python",
+                    "uses": "actions/setup-python@v1",
+                    "with": {
+                        "python-version": 3.8
+                    }
+                },
+                {
+                    "name": "Install dependencies",
+                    "run": "python -m pip install --upgrade pip\npip install botok\n"
+                },
+                {
+                    "name": "Create Orphand Branch",
+                    "run": "git checkout --orphan Pyrrha"
+                },
+                {
+                    "name": "Create Pyrrha View",
+                    "shell": "python",
+                    "run": "import csv\nfrom pathlib import Path\nimport botok\n\n# paths\npecha_id = Path.cwd().name\nbase_path = Path.cwd() / f\"{pecha_id}.opf\" / \"base\"\nassert base_path.is_dir()\n\n# pyrrha format\ncols_name = [\"form\", \"lemma\", \"POS\", \"morph\"]\n\ndef get_token_attrs(token):\n    form = token.text_unaffixed\n    lemma = token.lemma\n    pos = token.pos\n\n    # add tsek for failed `token.text_unaffixed`\n    if pos:\n        if not form.endswith(\"\u0f0b\"):\n            form += \"\u0f0b\"\n\n    # add pos to PUNCT type\n    if token.chunk_type == \"PUNCT\":\n        form = token.text.strip()\n        pos = token.chunk_type\n\n    return form, lemma, pos\n\ndef save_to_pyrrha_format(tokens, output_fn: Path):\n    with output_fn.open(\"w\") as out_file:\n        tsv_writer = csv.writer(out_file, delimiter=\"\\t\")\n        tsv_writer.writerow(cols_name)\n        for token in tokens:\n            form, lemma, pos = get_token_attrs(token)\n            tsv_writer.writerow([form, lemma, pos])\n\n\n# tokenize with botok as save in Pyrrha format\nwt = botok.WordTokenizer()\nfor base_fn in base_path.iterdir():\n    tokens = wt.tokenize(base_fn.read_text())\n    output_fn = Path.cwd() / f\"{base_fn.stem}.tsv\"\n    save_to_pyrrha_format(tokens, output_fn)\n\n# Create readme\nreadme_path = Path.cwd() / \"README.md\"\nreadme_content = f\"Config\\n----\\n- Tokenizer: `botok-v{botok.vars.__version__}`\"\nreadme_path.write_text(readme_content)\n"
+                },
+                {
+                    "name": "Clean up",
+                    "run": "rm -rf *.opf\nrm -rf readme.md\nrm -rf .github\n"
+                },
+                {
+                    "uses": "stefanzweifel/git-auto-commit-action@v4",
+                    "with": {
+                        "commit_message": "created botok view",
+                        "branch": "botok",
+                        "create_branch": true
+                    }
+                }
+            ]
+        }
+    }
+}
