@@ -1,0 +1,49 @@
+{
+    "name": "Quality Check",
+    "true": {
+        "push": {
+            "branches": [
+                "master"
+            ],
+            "paths": [
+                "**.txt",
+                "**check_quality.yml"
+            ]
+        },
+        "workflow_dispatch": null
+    },
+    "jobs": {
+        "checks": {
+            "runs-on": "ubuntu-latest",
+            "steps": [
+                {
+                    "uses": "actions/checkout@v2"
+                },
+                {
+                    "run": "git pull"
+                },
+                {
+                    "name": "Set up Python",
+                    "uses": "actions/setup-python@v1",
+                    "with": {
+                        "python-version": 3.8
+                    }
+                },
+                {
+                    "name": "Install dependencies",
+                    "run": "python -m pip install --upgrade pip\npip install openpecha\n"
+                },
+                {
+                    "name": "Perform Quality Check",
+                    "run": "openpecha qc $(pwd) --save"
+                },
+                {
+                    "uses": "stefanzweifel/git-auto-commit-action@v4",
+                    "with": {
+                        "commit_message": "Quality Check Run"
+                    }
+                }
+            ]
+        }
+    }
+}
